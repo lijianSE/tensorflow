@@ -1,10 +1,14 @@
 # array_ops
 BatchToSpace
+BroadcastArgs
 BroadcastGradientArgs
 ConcatOffset
 Concat
+ConcatV2
 Const
 EditDistance
+ExpandDims
+ListDiff
 MirrorPad
 MirrorPadGrad
 OneHot
@@ -12,8 +16,11 @@ Pack
 Pad
 Placeholder
 RefIdentity
+Reverse
 SpaceToBatch
 Split
+SplitV
+Squeeze
 Slice
 TileGrad  # Exported through array_grad instead of array_ops.
 ZerosLike  # TODO(josh11b): Use this instead of the Python version.
@@ -57,6 +64,7 @@ LookupTableFind
 LookupTableImport
 LookupTableInsert
 LookupTableSize
+MutableDenseHashTable
 MutableHashTable
 MutableHashTableOfTensors
 Mutex
@@ -87,6 +95,18 @@ TensorArraySize
 TensorArraySplit
 TensorArrayUnpack
 TensorArrayWrite
+TensorArrayV2
+TensorArrayCloseV2
+TensorArrayConcatV2
+TensorArrayGatherV2
+TensorArrayGradV2
+TensorArrayReadV2
+TensorArrayPackV2
+TensorArrayScatterV2
+TensorArraySizeV2
+TensorArraySplitV2
+TensorArrayUnpackV2
+TensorArrayWriteV2
 GetSessionHandle
 GetSessionTensor
 DeleteSessionTensor
@@ -158,14 +178,25 @@ AddN
 All
 Any
 BatchMatMul
+BatchFFT
+BatchFFT2D
+BatchFFT3D
+BatchIFFT
+BatchIFFT2D
+BatchIFFT3D
 Complex
+ComplexAbs
 Conj
+FloorDiv
+FloorMod
 Max
 Mean
 Min
 Pow
 Prod
 Range
+RealDiv
+Select
 SparseMatMul
 Sum
 MatMul
@@ -174,13 +205,17 @@ Tanh
 SigmoidGrad
 TanhGrad
 InvGrad
+ReciprocalGrad
 SqrtGrad
 RsqrtGrad
+TruncateDiv
+TruncateMod
 
 # nn_ops
 AvgPoolGrad  # "*Grad" accessible through nn_grad instead of nn_ops.
 BatchNormWithGlobalNormalization
 BatchNormWithGlobalNormalizationGrad
+FusedBatchNorm
 SoftmaxCrossEntropyWithLogits
 SparseSoftmaxCrossEntropyWithLogits
 LRNGrad
@@ -220,12 +255,21 @@ TruncatedNormal
 PyFunc
 PyFuncStateless
 
+# sdca_ops
+SdcaFprint
+SdcaOptimizer
+SdcaShrinkL1
+
 # state_ops
 Variable
+VariableV2
 TemporaryVariable
 DestroyTemporaryVariable
 
 # sparse_ops
+AddSparseToTensorsMap
+AddManySparseToTensorsMap
+TakeManySparseFromTensorsMap
 DeserializeManySparse
 SerializeManySparse
 SerializeSparse
@@ -248,3 +292,7 @@ Fact
 
 # training_ops
 # (None)
+
+# word2vec deprecated ops
+NegTrain
+Skipgram

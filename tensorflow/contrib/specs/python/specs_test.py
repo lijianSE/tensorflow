@@ -20,8 +20,8 @@ from __future__ import print_function
 
 import numpy as np
 import tensorflow as tf
-from tensorflow.contrib.specs.python import specs
 from tensorflow.contrib.specs.python import summaries
+specs = tf.contrib.specs
 
 
 def _rand(*size):
@@ -36,11 +36,11 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Cr(64, [5, 5])"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 18, 19, 64])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 18, 19, 64))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
-                       "_ var conv var biasadd relu")
+                       "_ variablev2 conv variablev2 biasadd relu")
 
   def testUnary(self):
     # This is just a quick and dirty check that these ops exist
@@ -50,7 +50,7 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Do(0.5) | Bn | Unit(1) | Relu | Sig | Tanh | Smax"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [17, 55])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (17, 55))
 
@@ -60,12 +60,12 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Fs(10) + Fr(10)"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [17, 10])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (17, 10))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
-                       "_ var dot var biasadd sig "
-                       "<> var dot var biasadd relu add")
+                       "_ variablev2 dot variablev2 biasadd sig "
+                       "<> variablev2 dot variablev2 biasadd relu add")
 
   def testMpPower(self):
     with self.test_session():
@@ -73,7 +73,7 @@ class SpecsTest(tf.test.TestCase):
       spec = "M2 = Mp([2, 2]); net = M2**3"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 8, 8, 5])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 8, 8, 5))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
@@ -85,12 +85,13 @@ class SpecsTest(tf.test.TestCase):
       spec = "C3 = Cr([3, 3]); M2 = Mp([2, 2]); net = (C3(5) | M2)**3"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 8, 8, 5])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 8, 8, 5))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
-                       "_ var conv var biasadd relu maxpool var conv var"
-                       " biasadd relu maxpool var conv var"
+                       "_ variablev2 conv variablev2 biasadd relu maxpool"
+                       " variablev2 conv variablev2"
+                       " biasadd relu maxpool variablev2 conv variablev2"
                        " biasadd relu maxpool")
 
   def testAbbrevPower2(self):
@@ -100,13 +101,14 @@ class SpecsTest(tf.test.TestCase):
       spec += "net = (C3(_0=5) | M2)**3"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 8, 8, 5])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 8, 8, 5))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
-                       "_ var conv var biasadd relu maxpool var conv"
-                       " var biasadd relu"
-                       " maxpool var conv var biasadd relu maxpool")
+                       "_ variablev2 conv variablev2 biasadd relu maxpool"
+                       " variablev2 conv variablev2 biasadd relu"
+                       " maxpool variablev2 conv variablev2 biasadd relu"
+                       " maxpool")
 
   def testConc(self):
     with self.test_session():
@@ -114,12 +116,12 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Conc(1, Fs(20), Fs(10))"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [10, 30])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (10, 30))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
-                       "_ _ var dot var biasadd sig "
-                       "<> var dot var biasadd sig concat")
+                       "_ variablev2 dot variablev2 biasadd sig "
+                       "<> variablev2 dot variablev2 biasadd sig _ concatv2")
 
   def testImport(self):
     with self.test_session():
@@ -128,7 +130,7 @@ class SpecsTest(tf.test.TestCase):
       spec += "; net = S | S"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [10, 20])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (10, 20))
       self.assertEqual(summaries.tf_spec_structure(spec, inputs),
@@ -140,7 +142,7 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Lstm2(15)"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 64, 64, 15])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 64, 64, 15))
 
@@ -150,7 +152,7 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Lstm2to1(15)"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 64, 15])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 64, 15))
 
@@ -160,7 +162,7 @@ class SpecsTest(tf.test.TestCase):
       spec = "net = Lstm2to0(15)"
       outputs = specs.create_net(spec, inputs)
       self.assertEqual(outputs.get_shape().as_list(), [1, 15])
-      tf.initialize_all_variables().run()
+      tf.global_variables_initializer().run()
       result = outputs.eval()
       self.assertEqual(tuple(result.shape), (1, 15))
 
@@ -197,7 +199,7 @@ class SpecsTest(tf.test.TestCase):
                 initializer=tf.constant_initializer(42.0))
       inputs = tf.constant(_rand(10, 100))
       outputs = v.funcall(inputs)
-      self.assertEqual(len(tf.all_variables()), 1)
+      self.assertEqual(len(tf.global_variables()), 1)
       sess.run([outputs.initializer])
       outputs_value = outputs.eval()
       self.assertEqual(outputs_value.shape, (2, 2))
@@ -211,21 +213,8 @@ class SpecsTest(tf.test.TestCase):
         g = f | f | f | f
       inputs = tf.constant(_rand(10, 100))
       _ = g.funcall(inputs)
-      self.assertEqual(len(tf.all_variables()), 2)
+      self.assertEqual(len(tf.global_variables()), 2)
 
-  def testAutoFunction(self):
-    with self.test_session():
-      inputs = tf.constant(_rand(1, 18, 19, 5))
-      with specs.ops:
-        # pylint: disable=undefined-variable
-        net = SL.conv2d(64, 5)
-      outputs = net.funcall(inputs)
-      self.assertEqual(outputs.get_shape().as_list(), [1, 18, 19, 64])
-      tf.initialize_all_variables().run()
-      result = outputs.eval()
-      self.assertEqual(tuple(result.shape), (1, 18, 19, 64))
-      self.assertEqual(summaries.tf_spec_structure("net = Cr(64, 5)", inputs),
-                       "_ var conv var biasadd relu")
 
 if __name__ == "__main__":
   tf.test.main()

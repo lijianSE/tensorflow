@@ -33,30 +33,26 @@ limitations under the License.
 //    un-registered objects unused, and therefore allow the linker to strip them
 //    out.  See tools/print_required_ops/print_selective_registration_header.py
 //    for a tool that can be used to generate ops_to_register.h.
+//
+// ops_to_register.h should define macros for:
+//   // Ops for which this is false will not be registered.
+//   SHOULD_REGISTER_OP(op)
+//   // If this is false, then no gradient ops are registered.
+//   SHOULD_REGISTER_OP_GRADIENT
+//   // Op kernel classes where this is false won't be registered.
+//   SHOULD_REGISTER_OP_KERNEL(clz)
+// The macros should be defined using constexprs.
+
 #include "ops_to_register.h"
 
-// ops_to_register should define macros for:
-//
-//   SHOULD_REGISTER_OP_KERNEL(clz)
-//   SHOULD_REGISTER_OP(op)
-//   SHOULD_REGISTER_OP_GRADIENT
-//   # same as SHOULD_REGISTER_OP, but invoked from a non-constexpr location.
-//   SHOULD_REGISTER_OP_NON_CONSTEXPR(op)
-//
-// Except for SHOULD_REGISTER_OP_NON_CONSTEXPR, the macros should be defined
-// using constexprs. See selective_registration_util.h for some utilities that
-// can be used.
-#if (!defined(SHOULD_REGISTER_OP_KERNEL) || !defined(SHOULD_REGISTER_OP) || \
-     !defined(SHOULD_REGISTER_OP_GRADIENT) ||                               \
-     !defined(SHOULD_REGISTER_OP_NON_CONSTEXPR))
+#if (!defined(SHOULD_REGISTER_OP) || !defined(SHOULD_REGISTER_OP_GRADIENT) || \
+     !defined(SHOULD_REGISTER_OP_KERNEL))
 static_assert(false, "ops_to_register.h must define SHOULD_REGISTER macros");
 #endif
-
 #else
-#define SHOULD_REGISTER_OP_KERNEL(clz) true
 #define SHOULD_REGISTER_OP(op) true
-#define SHOULD_REGISTER_OP_NON_CONSTEXPR(op) true
 #define SHOULD_REGISTER_OP_GRADIENT true
+#define SHOULD_REGISTER_OP_KERNEL(clz) true
 #endif
 
 #endif  // TENSORFLOW_FRAMEWORK_SELECTIVE_REGISTRATION_H_

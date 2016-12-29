@@ -43,9 +43,13 @@ tf.app.flags.DEFINE_string(
     'graphs', '',
     'Comma-separated list of paths to model files to be analyzed.')
 
-tf.app.flags.DEFINE_string('default_ops', 'NoOp:NoOp,_Recv:RecvOp,_Send:SendOp',
-                           'Default operator:kernel pairs to always include '
-                           'implementation for')
+tf.app.flags.DEFINE_string(
+    'default_ops', 'NoOp:NoOp,_Recv:RecvOp,_Send:SendOp',
+    'Default operator:kernel pairs to always include implementation for. '
+    'Pass "all" to have all operators and kernels included; note that this '
+    'should be used only when it is useful compared with simply not using '
+    'selective registration, as it can in some cases limit the effect of '
+    'compilation caches')
 
 
 def get_ops_and_kernels(proto_fileformat, proto_files, default_ops_str):
@@ -77,58 +81,64 @@ def get_ops_and_kernels(proto_fileformat, proto_files, default_ops_str):
             'Warning: no kernel found for op %s' % node_def.op, file=sys.stderr)
 
   # Add default ops.
-  for s in default_ops_str.split(','):
-    op, kernel = s.split(':')
-    op_and_kernel = (op, kernel)
-    if op_and_kernel not in ops:
-      ops.add(op_and_kernel)
+  if default_ops_str != 'all':
+    for s in default_ops_str.split(','):
+      op, kernel = s.split(':')
+      op_and_kernel = (op, kernel)
+      if op_and_kernel not in ops:
+        ops.add(op_and_kernel)
 
   return list(sorted(ops))
 
 
-def print_header(ops_and_kernels, ops):
-  """Prints a header for use with tensorflow SELECTIVE_REGISTRATION."""
-  print('#ifndef OPS_TO_REGISTER')
-  print('#define OPS_TO_REGISTER')
+def get_header(ops_and_kernels, include_all_ops_and_kernels):
+  """Returns a header for use with tensorflow SELECTIVE_REGISTRATION.
 
-  # Prints an expression that will be true if the macro variable s matches
-  # any of <vals> and false otherwise. Is implemented with plain comparison
-  # to avoid using strcmp or strstr, which are not constexpr in all compilers.
-  #
-  # For each string in <vals>, this emits a comparison between s and the value.
-  # The comparison is done with a size comparison test and then char-by-char
-  # Note that sizeof("abc") is 4 for single-byte chars; the extra +1 is from
-  # the 0 terminator.
-  def print_constexpr_comparison_macro_body(vals):
-    print('  (false\\')
-    for v in vals:
-      v_check = ''
-      v_check += 'sizeof(s) == %s \\\n       ' % (1 + len(v))
-      for i, ch in enumerate(v):
-        v_check += ('&& s[%s < sizeof(s) ? %s : 0] == \'%s\' \\\n         ' %
-                    (i, i, ch))
-      print('     || (' + v_check + ')\\')
-    print('  )')
+  Args:
+    ops_and_kernels: a set of (op_name, kernel_class_name) pairs to include.
+    include_all_ops_and_kernels: if True, ops_and_kernels is ignored and all op
+    kernels are included.
 
-  print('#define SHOULD_REGISTER_OP(s) \\')
-  print_constexpr_comparison_macro_body(sorted(ops))
+  Returns:
+    the string of the header that should be written as ops_to_register.h.
+  """
+  ops = set([op for op, _ in ops_and_kernels])
+  result_list = []
 
-  print('inline bool ShouldRegisterOpNonConstexpr(const char * op) {')
-  print('  return false')
-  for op in sorted(ops):
-    print('     || (strcmp(op, "%s") == 0)' % op)
-  print('  ;')
-  print('}')
-  print('#define SHOULD_REGISTER_OP_NON_CONSTEXPR(op) \\')
-  print('    ShouldRegisterOpNonConstexpr(op)')
+  def append(s):
+    result_list.append(s)
 
-  print('#define SHOULD_REGISTER_OP_KERNEL(s) \\')
-  print_constexpr_comparison_macro_body([c for _, c in ops_and_kernels])
+  append('#ifndef OPS_TO_REGISTER')
+  append('#define OPS_TO_REGISTER')
 
-  print('#define SHOULD_REGISTER_OP_GRADIENT %s' %
-        ('true' if 'SymbolicGradient' in ops else 'false'))
+  if include_all_ops_and_kernels:
+    append('#define SHOULD_REGISTER_OP(op) true')
+    append('#define SHOULD_REGISTER_OP_KERNEL(clz) true')
+    append('#define SHOULD_REGISTER_OP_GRADIENT true')
+  else:
+    append('constexpr inline bool ShouldRegisterOp(const char op[]) {')
+    append('  return false')
+    for op in sorted(ops):
+      append('     || (strcmp(op, "%s") == 0)' % op)
+    append('  ;')
+    append('}')
+    append('#define SHOULD_REGISTER_OP(op) ShouldRegisterOp(op)')
+    append('')
 
-  print('#endif  // OPS_TO_REGISTER')
+    line = 'const char kNecessaryOpKernelClasses[] = ","\n'
+    for _, kernel_class in ops_and_kernels:
+      line += '"%s,"\n' % kernel_class
+    line += ';'
+    append(line)
+    append('#define SHOULD_REGISTER_OP_KERNEL(clz) '
+           '(strstr(kNecessaryOpKernelClasses, "," clz ",") != nullptr)')
+    append('')
+
+    append('#define SHOULD_REGISTER_OP_GRADIENT ' + (
+        'true' if 'SymbolicGradient' in ops else 'false'))
+
+  append('#endif')
+  return '\n'.join(result_list)
 
 
 def main(unused_argv):
@@ -138,12 +148,11 @@ def main(unused_argv):
   graphs = FLAGS.graphs.split(',')
   ops_and_kernels = get_ops_and_kernels(FLAGS.proto_fileformat, graphs,
                                         FLAGS.default_ops)
-  ops = set([op for op, _ in ops_and_kernels])
-  if not ops:
+  if not ops_and_kernels:
     print('Error reading graph!')
     return 1
 
-  print_header(ops_and_kernels, ops)
+  print(get_header(ops_and_kernels, FLAGS.default_ops == 'all'))
 
 
 if __name__ == '__main__':
